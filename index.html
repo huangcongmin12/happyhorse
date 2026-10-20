@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>快乐马风控系统</title>
+    <style>
+        :root {
+            --bg: #f5f6f8;
+            --card-bg: #ffffff;
+            --text: #1a1a2e;
+            --text-secondary: #555;
+            --border: #e0e4ea;
+            --accent: #4f6ef7;
+            --accent-hover: #3b54d4;
+            --danger: #e74c3c;
+            --danger-light: #fde8e5;
+            --success: #27ae60;
+            --success-light: #e6f7ee;
+            --warning: #f39c12;
+            --warning-light: #fef5e7;
+            --shadow: 0 2px 8px rgba(0,0,0,0.06);
+            --radius: 8px;
+            --radius-sm: 5px;
+            --transition: 0.2s ease;
+        }
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif; background:var(--bg); color:var(--text); line-height:1.5; min-height:100vh; }
+
+        /* 登录遮罩 */
+        .login-overlay {
+            position: fixed; top:0; left:0; width:100%; height:100%;
+            background: rgba(0,0,0,0.5); display:flex; align-items:center; justify-content:center;
+            z-index:2000;
+        }
+        .login-box {
+            background: white; border-radius:12px; padding:30px 36px; width:360px; max-width:90%;
+            box-shadow:0 10px 40px rgba(0,0,0,0.25); text-align:center;
+        }
+        .login-box h2 { margin-bottom:20px; font-size:1.3rem; color:#1a1a2e; }
+        .login-box input { width:100%; padding:10px 12px; margin-bottom:15px; border:1px solid #ddd; border-radius:6px; font-size:0.95rem; }
+        .login-box .error { color:#e74c3c; font-size:0.85rem; margin-bottom:10px; min-height:20px; }
+        .login-box button { padding:10px 24px; background:var(--accent); color:#fff; border:none; border-radius:6px; cursor:pointer; font-size:1rem; }
+
+        .container { max-width:1300px; margin:0 auto; padding:10px 16px; }
+        .header { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; margin-bottom:10px; padding:8px 14px; background:var(--card-bg); border-radius:var(--radius); box-shadow:var(--shadow); }
+        .header .logo { display:flex; align-items:center; gap:8px; font-size:1.1rem; font-weight:700; }
+        .header .logo .icon { width:30px; height:30px; border-radius:50%; background:linear-gradient(135deg,#4f6ef7,#6c8cff); display:flex; align-items:center; justify-content:center; font-size:1.1rem; color:#fff; }
+        .summary-cards { display:flex; gap:6px; flex-wrap:wrap; align-items:center; }
+        .summary-card { padding:4px 8px; border-radius:var(--radius-sm); background:#f8f9fb; border:1px solid var(--border); text-align:center; min-width:70px; }
+        .summary-card .val { font-size:0.95rem; font-weight:700; }
+        .summary-card .lbl { font-size:0.65rem; color:var(--text-secondary); }
+        .summary-card.danger { background:var(--danger-light); border-color:#f5c6cb; } .summary-card.danger .val { color:var(--danger); }
+        .summary-card.success { background:var(--success-light); border-color:#b7dfc5; } .summary-card.success .val { color:var(--success); }
+        .summary-card.warning-card { background:var(--warning-light); border-color:#fad7b5; } .summary-card.warning-card .val { color:var(--warning); }
+        .multiplier-box { display:flex; align-items:center; gap:4px; margin-left:8px; }
+        .multiplier-box span { font-size:0.7rem; color:var(--text-secondary); }
+        .multiplier-box input { width:55px; padding:3px 5px; border-radius:4px; border:1px solid var(--border); font-size:0.75rem; text-align:center; }
+
+        .main-layout { display:flex; gap:10px; flex-wrap:wrap; }
+        .grid-panel { flex:1 1 620px; min-width:480px; display:flex; flex-direction:column; gap:8px; }
+        .grid-panel .horse-section { background:var(--card-bg); border-radius:var(--radius); box-shadow:var(--shadow); padding:8px; }
+        .grid-panel .bottom-cards { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+        .control-panel { flex:0 0 350px; display:flex; flex-direction:column; gap:8px; }
+        .toolbar { display:flex; flex-wrap:wrap; gap:4px; align-items:center; margin-bottom:5px; }
+        .btn { padding:4px 8px; border-radius:var(--radius-sm); border:1px solid var(--border); background:#fff; cursor:pointer; font-size:0.76rem; font-weight:500; transition:var(--transition); white-space:nowrap; display:inline-flex; align-items:center; gap:3px; color:var(--text); }
+        .btn:hover { background:#f0f2f5; border-color:#c0c7cf; }
+        .btn.primary { background:var(--accent); color:#fff; border-color:var(--accent); font-weight:600; } .btn.primary:hover { background:var(--accent-hover); }
+        .btn.danger { background:#fff; color:var(--danger); border-color:#f5c6cb; } .btn.danger:hover { background:var(--danger-light); }
+        .btn.sm { padding:2px 6px; font-size:0.68rem; border-radius:4px; }
+        .btn:disabled { opacity:0.45; cursor:not-allowed; pointer-events:none; }
+        .input-text { padding:4px 7px; border-radius:var(--radius-sm); border:1px solid var(--border); font-size:0.76rem; transition:var(--transition); font-family:inherit; }
+        .input-text:focus { outline:none; border-color:var(--accent); box-shadow:0 0 0 2px rgba(79,110,247,0.1); }
+        .input-text.wide { width:100%; max-width:220px; }
+        .input-text.amount { width:70px; }
+        .tag { display:inline-block; padding:1px 5px; border-radius:8px; font-size:0.65rem; font-weight:600; background:#e8ecf1; color:#555; }
+        .tag.selected-count { background:#e0e6ff; color:var(--accent); }
+
+        .horse-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:3px; }
+        .horse-cell { position:relative; border:2px solid #e8ecf1; border-radius:4px; padding:3px 2px 2px; text-align:center; cursor:pointer; transition:all var(--transition); background:#fafbfc; user-select:none; min-height:40px; display:flex; flex-direction:column; align-items:center; justify-content:center; }
+        .horse-cell:hover { border-color:#bcc4d0; background:#f0f3f7; transform:translateY(-1px); box-shadow:0 2px 8px rgba(0,0,0,0.05); }
+        .horse-cell.selected { border:2px solid #1a56e0 !important; background:#dbeafe !important; box-shadow:0 0 6px rgba(26, 86, 224, 0.3) !important; font-weight:700; }
+        .horse-cell .horse-num { font-size:0.7rem; font-weight:700; line-height:1; }
+        .horse-cell .horse-bet { font-size:0.6rem; color:var(--text-secondary); margin-top:1px; }
+        .horse-cell .horse-profit { font-size:0.55rem; font-weight:600; margin-top:1px; padding:1px 2px; border-radius:3px; }
+        .horse-cell.risk-high { background:#f8d7da !important; border-color:#dc3545 !important; box-shadow:0 0 5px rgba(231,76,60,0.3); }
+        .horse-cell.risk-medium { background:#fff3e5 !important; border-color:#fad7b5 !important; }
+        .horse-cell.risk-safe { background:#e6f7ee !important; border-color:#b7dfc5 !important; }
+        .horse-cell.risk-no-bet { background:#fafbfc !important; border-color:#e8ecf1 !important; }
+        .profit-badge { font-size:0.55rem; font-weight:700; padding:1px 2px; border-radius:3px; }
+        .profit-badge.loss { background:#fde8e5; color:#c0392b; } .profit-badge.gain { background:#d5f5e3; color:#1e8449; } .profit-badge.neutral { background:#e8ecf1; color:#666; }
+
+        .card { background:var(--card-bg); border-radius:var(--radius); box-shadow:var(--shadow); padding:8px; }
+        .card h3 { font-size:0.8rem; margin-bottom:4px; display:flex; align-items:center; gap:3px; }
+        .dot { width:6px; height:6px; border-radius:50%; display:inline-block; }
+        .dot.red { background:var(--danger); } .dot.green { background:var(--success); } .dot.blue { background:var(--accent); } .dot.orange { background:var(--warning); }
+        .risk-list { max-height:300px; overflow-y:auto; font-size:0.72rem; }
+        .risk-item { display:flex; justify-content:space-between; align-items:center; padding:2px 5px; border-radius:3px; margin-bottom:1px; background:#fef5e7; border-left:3px solid var(--warning); }
+        .risk-item.severe { background:#fde8e5; border-left-color:var(--danger); }
+        .discard-table { width:100%; font-size:0.68rem; border-collapse:collapse; margin-top:2px; }
+        .discard-table th, .discard-table td { padding:2px 4px; text-align:right; border-bottom:1px solid #eee; }
+        .discard-table th { text-align:center; font-weight:600; color:#555; font-size:0.64rem; }
+        .highlight-row { background:#fff9f0; font-weight:600; }
+        .log-area { max-height:300px; overflow-y:auto; font-size:0.66rem; color:#666; line-height:1.3; background:#fafbfc; padding:4px; border-radius:4px; border:1px solid #eee; }
+        .log-area .log-entry { padding:1px 0; border-bottom:1px dotted #eee; }
+        .log-entry .time-stamp { color:#999; margin-right:2px; }
+
+        .modal-overlay { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.4); display:flex; align-items:center; justify-content:center; z-index:1000; }
+        .modal-box { background:white; border-radius:10px; padding:18px; width:400px; max-width:90%; box-shadow:0 8px 25px rgba(0,0,0,0.2); }
+        .modal-box h4 { margin-bottom:8px; font-size:0.9rem; }
+        .modal-box .detail { max-height:240px; overflow-y:auto; margin:8px 0; font-size:0.76rem; }
+        .modal-buttons { display:flex; gap:5px; justify-content:flex-end; }
+
+        @media (max-width:900px) {
+            .main-layout { flex-direction:column; }
+            .grid-panel { min-width:auto; }
+            .grid-panel .bottom-cards { grid-template-columns:1fr; }
+        }
+    </style>
+</head>
+<body>
+    <!-- 登录遮罩 -->
+    <div class="login-overlay" id="loginOverlay">
+        <div class="login-box">
+            <h2>🔒 快乐马风控系统</h2>
+            <input type="password" id="loginPassword" placeholder="请输入访问密码" autocomplete="off">
+            <div class="error" id="loginError"></div>
+            <button onclick="handleLogin()">进入系统</button>
+        </div>
+    </div>
+
+    <!-- 主界面（默认隐藏） -->
+    <div id="mainContent" style="display:none;">
+        <div class="container">
+            <div class="header">
+                <div class="logo"><div class="icon">🐴</div><span>快乐马风控系统</span></div>
+                <div class="summary-cards">
+                    <div class="summary-card"><div class="val" id="totalRDisplay">¥0.00</div><div class="lbl">总投注额</div></div>
+                    <div class="summary-card"><div class="val" id="riskCountDisplay">0</div><div class="lbl">风险编号数</div></div>
+                    <div class="summary-card danger"><div class="val" id="maxLossDisplay">¥0.00</div><div class="lbl">最大可能亏损</div></div>
+                    <div class="summary-card success"><div class="val" id="minProfitDisplay">¥0.00</div><div class="lbl">最差情况盈利</div></div>
+                    <div class="summary-card warning-card"><div class="val" id="discardTotalHeader">¥0.00</div><div class="lbl">建议丢弃总额</div></div>
+                    <div class="multiplier-box">
+                        <span>赔率 1:</span>
+                        <input type="number" id="multiplierInput" value="49" min="1" step="1">
+                        <button class="btn sm" id="applyMultiplierBtn" onclick="applyMultiplier()">应用</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="main-layout">
+                <!-- 其余结构完全不变，此处省略以节约篇幅，实际代码中完整保留 -->
+                <div class="grid-panel">
+                    <div class="horse-section">
+                        <div class="toolbar">
+                            <button class="btn sm" onclick="selectAll()">✅ 全选</button>
+                            <button class="btn sm" onclick="deselectAll()">❌ 取消全选</button>
+                            <input type="text" class="input-text wide" id="numberInput" placeholder="编号如: 1,3,5-10,15" style="max-width:150px;">
+                            <button class="btn sm" onclick="selectByNumber()">🎯 按编号选中</button>
+                            <span class="tag selected-count" id="selectedCountTag">已选: 0 个</span>
+                        </div>
+                        <div class="horse-grid" id="horseGrid"></div>
+                    </div>
+                    <div class="bottom-cards">
+                        <div class="card">
+                            <h3><span class="dot blue"></span>批量下注</h3>
+                            <div style="display:flex; gap:3px; flex-wrap:wrap; align-items:center; margin-bottom:3px;">
+                                <span style="font-size:0.7rem;">金额:</span>
+                                <input type="number" class="input-text amount" id="betAmount" value="10" min="1" step="1" onkeypress="return event.charCode >= 48 && event.charCode <= 57" oninput="this.value=this.value.replace(/[^0-9]/g,''); if(this.value < 1) this.value=1;">
+                                <span style="font-size:0.7rem;">号码:</span>
+                                <input type="text" class="input-text wide" id="betNumberInput" placeholder="如: 1,2,5-8,15" style="max-width:120px;">
+                                <button class="btn sm" onclick="clearBetInput()">🧹</button>
+                            </div>
+                            <div style="display:flex; gap:3px;">
+                                <button class="btn primary" onclick="placeBatchBet()">💰 下注</button>
+                            </div>
+                            <div style="margin-top:2px; font-size:0.6rem; color:#888;">留空则对<span id="betTargetCount">0</span>个选中号码操作</div>
+                        </div>
+                        <div class="card">
+                            <h3><span class="dot red"></span>取消下注</h3>
+                            <textarea class="input-text wide" id="cancelInput" rows="6" placeholder="如：马各号20米 或 1,2,3各50斤" style="resize:vertical; max-width:100%; font-size:0.72rem;"></textarea>
+                            <div style="display:flex; gap:3px; margin-top:3px;">
+                                <button class="btn sm" onclick="clearCancelInput()">🧹 清空</button>
+                                <button class="btn danger" onclick="smartCancelBet()">🗑️ 取消下注</button>
+                            </div>
+                            <div style="font-size:0.58rem; color:#888; margin-top:2px;">支持“各数/各号/各”，重复号码多次下注</div>
+                        </div>
+                        <div class="card">
+                            <h3><span class="dot orange"></span>风险编号</h3>
+                            <div class="risk-list" id="riskList"><span style="color:#999;font-size:0.72rem;">暂无风险</span></div>
+                        </div>
+                        <div class="card">
+                            <h3>📋 操作日志</h3>
+                            <div class="log-area" id="logArea"><span style="color:#999;font-size:0.66rem;">系统就绪</span></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="control-panel">
+                    <div class="card">
+                        <h3><span class="dot orange"></span>智能识别下注</h3>
+                        <div style="display:flex; gap:3px; flex-wrap:wrap; align-items:flex-start;">
+                            <textarea class="input-text wide" id="aiBetInput" rows="6" placeholder="多订单用单位分隔，例：马各号80米   1，2，3各50斤  马各号二十井" style="flex:1; resize:vertical; max-width:100%; font-size:0.76rem;"></textarea>
+                            <div style="display:flex; gap:3px; flex-direction:column;">
+                                <button class="btn sm" onclick="clearAIInput()">🧹 清空</button>
+                                <button class="btn primary" onclick="aiBet()">🤖 识别下注</button>
+                            </div>
+                        </div>
+                        <div style="font-size:0.62rem; color:#888; margin-top:2px;">支持“各数/各号/各”，重复号码多次下注</div>
+                        <div style="margin-top:4px;">
+                            <button class="btn danger sm" onclick="resetAll()">🔄 重置数据</button>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <h3><span class="dot green"></span>建议丢弃方案</h3>
+                        <div style="display:flex; align-items:center; gap:5px; margin-bottom:5px; flex-wrap:wrap;">
+                            <span style="font-size:0.7rem;">容忍亏损:</span>
+                            <input type="number" class="input-text amount" id="maxLossTolerance" value="0" min="0" step="0.01">
+                            <span style="font-size:0.62rem; color:#888;">元</span>
+                            <button class="btn sm" onclick="applyTolerance()">应用</button>
+                        </div>
+                        <div id="discardSummary" style="font-size:0.72rem; color:#888;">无需丢弃</div>
+                        <div id="discardAfterInfo" style="font-size:0.66rem; color:#555; margin-top:2px;"></div>
+                        <div style="text-align:left;">
+                            <table class="discard-table" id="discardTable" style="display:none;">
+                                <thead><tr><th>编号</th><th>当前投注</th><th>建议丢弃</th><th>丢弃后</th></tr></thead>
+                                <tbody id="discardTableBody"></tbody>
+                            </table>
+                        </div>
+                        <button class="btn sm danger" id="btnExecuteGlobalDiscard" disabled onclick="executeGlobalDiscard()" style="margin-top:5px;">🗑️ 执行建议丢弃</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="confirmModal" class="modal-overlay" style="display:none;">
+        <div class="modal-box">
+            <h4 id="modalTitle">确认操作</h4>
+            <div class="detail" id="modalDetail"></div>
+            <div class="modal-buttons">
+                <button class="btn" onclick="closeModal()">取消</button>
+                <button class="btn primary" id="modalConfirmBtn">确认</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        (function() {
+            const INITIAL_PASSWORD = 'happyhorse$2026';
+            let passwordHashHex = null;
+            const NUM_HORSES = 49;
+            const ZODIAC_MAP = [
+                { name: '马', numbers: [1,13,25,37,49] },
+                { name: '羊', numbers: [12,24,36,48] },
+                { name: '猴', numbers: [11,23,35,47] },
+                { name: '鸡', numbers: [10,22,34,46] },
+                { name: '狗', numbers: [9,21,33,45] },
+                { name: '猪', numbers: [8,20,32,44] },
+                { name: '鼠', numbers: [7,19,31,43] },
+                { name: '牛', numbers: [6,18,30,42] },
+                { name: '虎', numbers: [5,17,29,41] },
+                { name: '兔', numbers: [4,16,28,40] },
+                { name: '龙', numbers: [3,15,27,39] },
+                { name: '蛇', numbers: [2,14,26,38] }
+            ];
+            const displayCache = new Array(NUM_HORSES);
+            for (let i = 0; i < NUM_HORSES; i++) {
+                const num = i + 1;
+                const zodiac = ZODIAC_MAP.find(z => z.numbers.includes(num));
+                displayCache[i] = zodiac ? `${zodiac.name}${num}` : `号${num}`;
+            }
+            function getNumberDisplay(index) { return displayCache[index]; }
+
+            let multiplier = 49;
+            const multiplierInput = document.getElementById('multiplierInput');
+            const applyMultiplierBtn = document.getElementById('applyMultiplierBtn');
+            let multiplierLockTimer = null;
+
+            let bets = new Array(NUM_HORSES).fill(0);
+            let totalR = 0;
+            let selectedHorses = new Set();
+            let operationLog = [];
+            let globalDiscardPlan = null;
+            let currentTolerance = 0;
+            let pendingAction = null;
+
+            const modalOverlay = document.getElementById('confirmModal');
+            const modalTitle = document.getElementById('modalTitle');
+            const modalDetail = document.getElementById('modalDetail');
+            const modalConfirmBtn = document.getElementById('modalConfirmBtn');
+            const horseGrid = document.getElementById('horseGrid');
+            const riskList = document.getElementById('riskList');
+            const discardSummary = document.getElementById('discardSummary');
+            const discardTable = document.getElementById('discardTable');
+            const discardTableBody = document.getElementById('discardTableBody');
+            const discardAfterInfo = document.getElementById('discardAfterInfo');
+            const btnExecuteGlobalDiscard = document.getElementById('btnExecuteGlobalDiscard');
+            const logArea = document.getElementById('logArea');
+            const selectedCountTag = document.getElementById('selectedCountTag');
+            const betTargetCount = document.getElementById('betTargetCount');
+            const maxLossToleranceInput = document.getElementById('maxLossTolerance');
+
+            // 密码哈希
+            async function hashPassword(password) {
+                const encoder = new TextEncoder();
+                const data = encoder.encode(password);
+                const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+                const hashArray = Array.from(new Uint8Array(hashBuffer));
+                return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+            }
+            (async () => {
+                passwordHashHex = await hashPassword(INITIAL_PASSWORD);
+            })();
+
+            window.handleLogin = async function() {
+                const input = document.getElementById('loginPassword').value;
+                const errorDiv = document.getElementById('loginError');
+                if (!input) { errorDiv.textContent = '请输入密码'; return; }
+                if (!passwordHashHex) { errorDiv.textContent = '系统初始化中...'; return; }
+                const inputHash = await hashPassword(input);
+                if (inputHash !== passwordHashHex) {
+                    errorDiv.textContent = '密码错误';
+                    return;
+                }
+                document.getElementById('loginOverlay').style.display = 'none';
+                document.getElementById('mainContent').style.display = 'block';
+                initSystem();
+            };
+
+            // 系统初始化函数
+            function initSystem() {
+                function buildGrid() {
+                    horseGrid.innerHTML = '';
+                    for (let i = 0; i < NUM_HORSES; i++) {
+                        const cell = document.createElement('div');
+                        cell.className = 'horse-cell';
+                        cell.dataset.index = i;
+                        cell.innerHTML = `<span class="horse-num">${getNumberDisplay(i)}</span><span class="horse-bet">¥0.00</span><span class="horse-profit profit-badge neutral">-</span>`;
+                        cell.addEventListener('click', () => toggleHorse(parseInt(cell.dataset.index)));
+                        horseGrid.appendChild(cell);
+                    }
+                }
+                function getCellEl(i) { return horseGrid.querySelector(`[data-index="${i}"]`); }
+
+                function toggleHorse(i) { selectedHorses.has(i) ? selectedHorses.delete(i) : selectedHorses.add(i); updateSelectionUI(); }
+                function selectAll() { for(let i=0;i<NUM_HORSES;i++) selectedHorses.add(i); updateSelectionUI(); addLog('全选 49 个号码'); }
+                function deselectAll() { selectedHorses.clear(); updateSelectionUI(); addLog('取消全选'); }
+                function selectByNumber() {
+                    const raw = document.getElementById('numberInput').value.trim();
+                    if(!raw) return;
+                    const indices = parseNumberRange(raw);
+                    if(!indices.length) { alert('未识别到有效号码'); return; }
+                    selectedHorses.clear();
+                    indices.forEach(i=>selectedHorses.add(i));
+                    updateSelectionUI();
+                    addLog(`按编号选中: ${indices.map(i => getNumberDisplay(i)).join(',')}`);
+                }
+                function parseNumberRange(raw) {
+                    const numbers = raw.match(/\d+/g);
+                    if (!numbers) return [];
+                    const res = new Set();
+                    numbers.forEach(numStr => {
+                        const n = parseInt(numStr, 10);
+                        if (n >= 1 && n <= NUM_HORSES) res.add(n - 1);
+                    });
+                    return Array.from(res).sort((a,b)=>a-b);
+                }
+                function updateSelectionUI() {
+                    document.querySelectorAll('.horse-cell').forEach(c => {
+                        const idx = +c.dataset.index;
+                        c.classList.toggle('selected', selectedHorses.has(idx));
+                    });
+                    selectedCountTag.textContent = `已选: ${selectedHorses.size} 个`;
+                    betTargetCount.textContent = selectedHorses.size;
+                }
+
+                window.clearBetInput = function() { document.getElementById('betNumberInput').value = ''; };
+                window.clearCancelInput = function() { document.getElementById('cancelInput').value = ''; };
+                window.clearAIInput = function() { document.getElementById('aiBetInput').value = ''; };
+
+                function showConfirm(title, detailHtml, onConfirm) {
+                    modalTitle.textContent = title;
+                    modalDetail.innerHTML = detailHtml;
+                    pendingAction = onConfirm;
+                    modalOverlay.style.display = 'flex';
+                }
+                window.closeModal = function() {
+                    modalOverlay.style.display = 'none';
+                    pendingAction = null;
+                };
+                modalConfirmBtn.addEventListener('click', function() {
+                    if (pendingAction) { pendingAction(); pendingAction = null; }
+                    modalOverlay.style.display = 'none';
+                });
+
+                function getBetTargetIndices() {
+                    const numberStr = document.getElementById('betNumberInput').value.trim();
+                    if (numberStr) {
+                        const indices = parseNumberRange(numberStr);
+                        if (indices.length === 0) throw new Error('未识别到有效号码');
+                        return indices;
+                    } else {
+                        if (selectedHorses.size === 0) throw new Error('请先选择号码或输入号码');
+                        return [...selectedHorses];
+                    }
+                }
+
+                window.placeBatchBet = function() {
+                    const amountInput = document.getElementById('betAmount');
+                    let amount = parseInt(amountInput.value, 10);
+                    if (isNaN(amount) || amount <= 0 || !Number.isInteger(amount)) {
+                        alert('请输入有效的正整数金额');
+                        amountInput.value = 10;
+                        return;
+                    }
+                    let targetIndices;
+                    try { targetIndices = getBetTargetIndices(); } catch(e) { alert(e.message); return; }
+                    const displayNums = targetIndices.map(i => getNumberDisplay(i)).join(',');
+                    const totalAdded = amount * targetIndices.length;
+                    const detail = `下注号码：${displayNums}<br>每注金额：¥${amount}<br>总金额：¥${totalAdded}`;
+                    showConfirm('确认下注', detail, () => {
+                        targetIndices.forEach(i => bets[i] += amount);
+                        totalR += totalAdded;
+                        addLog(`下注: ${displayNums} 各¥${amount}，总计¥${totalAdded}`);
+                        recalculateAndUpdate();
+                        document.getElementById('betNumberInput').value = '';
+                    });
+                };
+
+                function chineseToNumber(str) {
+                    const map = { '零':0, '一':1, '二':2, '三':3, '四':4, '五':5, '六':6, '七':7, '八':8, '九':9, '十':10 };
+                    str = str.trim();
+                    if (/^\d+$/.test(str)) {
+                        const n = parseInt(str, 10);
+                        return Number.isInteger(n) && n > 0 ? n : null;
+                    }
+                    if (str === '十') return 10;
+                    if (str.startsWith('十')) return 10 + (map[str[1]] || 0);
+                    if (str.endsWith('十')) return (map[str[0]] || 0) * 10;
+                    if (str.includes('十')) {
+                        const parts = str.split('十');
+                        return (map[parts[0]] || 0) * 10 + (map[parts[1]] || 0);
+                    }
+                    const val = map[str];
+                    return (val !== undefined && val > 0) ? val : null;
+                }
+
+                function parseSmartOrders(text) {
+                    const pattern = /(.*?各(?:数|号)?)\s*([零一二三四五六七八九十百廿\d]+)\s*([元斤米井块])/g;
+                    const orders = [];
+                    let match;
+                    while ((match = pattern.exec(text)) !== null) {
+                        const before = match[1].trim();
+                        const amountStr = match[2].trim();
+                        const horseIndices = [];
+                        const zodiacNames = ZODIAC_MAP.map(z => z.name);
+                        const zodiacRegex = new RegExp(zodiacNames.join('|'), 'g');
+                        let zmatch;
+                        while ((zmatch = zodiacRegex.exec(before)) !== null) {
+                            const zodiac = ZODIAC_MAP.find(z => z.name === zmatch[0]);
+                            if (zodiac) {
+                                horseIndices.push(...zodiac.numbers.map(n => n - 1));
+                            }
+                        }
+                        const numMatches = before.match(/\d+/g);
+                        if (numMatches) {
+                            numMatches.forEach(nStr => {
+                                const n = parseInt(nStr, 10);
+                                if (n >= 1 && n <= NUM_HORSES) horseIndices.push(n - 1);
+                            });
+                        }
+                        if (horseIndices.length === 0) continue;
+                        const amount = chineseToNumber(amountStr);
+                        if (amount === null || amount <= 0) continue;
+                        orders.push({ horseIndices, amount });
+                    }
+                    return orders;
+                }
+
+                window.aiBet = function() {
+                    const text = document.getElementById('aiBetInput').value.trim();
+                    if (!text) { alert('请输入识别内容'); return; }
+                    const orders = parseSmartOrders(text);
+                    if (!orders || orders.length === 0) { alert('无法识别有效订单，请检查格式'); return; }
+                    const amountMap = new Map();
+                    for (const order of orders) {
+                        for (const idx of order.horseIndices) {
+                            amountMap.set(idx, (amountMap.get(idx) || 0) + order.amount);
+                        }
+                    }
+                    if (amountMap.size === 0) { alert('未识别到任何有效号码'); return; }
+                    let orderDetails = '';
+                    for (const order of orders) {
+                        const nums = order.horseIndices.map(i => getNumberDisplay(i)).join(',');
+                        orderDetails += `· ${nums} 各¥${order.amount}<br>`;
+                    }
+                    const totalAdded = [...amountMap.values()].reduce((a,b) => a + b, 0);
+                    const detail = `${orderDetails}<br><strong>合计下注：</strong>共${[...amountMap.keys()].length}个号码，总金额¥${totalAdded}`;
+                    showConfirm('智能下注确认', detail, () => {
+                        for (const [idx, amt] of amountMap.entries()) { bets[idx] += amt; }
+                        totalR += totalAdded;
+                        addLog(`智能下注: 总金额¥${totalAdded}`);
+                        recalculateAndUpdate();
+                        document.getElementById('aiBetInput').value = '';
+                    });
+                };
+
+                window.smartCancelBet = function() {
+                    const text = document.getElementById('cancelInput').value.trim();
+                    if (!text) { alert('请输入识别内容'); return; }
+                    const orders = parseSmartOrders(text);
+                    if (!orders || orders.length === 0) { alert('无法识别有效订单，请检查格式'); return; }
+                    const amountMap = new Map();
+                    for (const order of orders) {
+                        for (const idx of order.horseIndices) {
+                            amountMap.set(idx, (amountMap.get(idx) || 0) + order.amount);
+                        }
+                    }
+                    if (amountMap.size === 0) { alert('未识别到任何有效号码'); return; }
+                    let orderDetails = '';
+                    const warnings = [];
+                    for (const order of orders) {
+                        const nums = order.horseIndices.map(i => getNumberDisplay(i)).join(',');
+                        orderDetails += `· ${nums} 各¥${order.amount}<br>`;
+                    }
+                    for (const [idx, amt] of amountMap.entries()) {
+                        if (bets[idx] < amt) {
+                            warnings.push(`${getNumberDisplay(idx)} 投注¥${bets[idx].toFixed(2)}不足¥${amt}，将归零`);
+                        }
+                    }
+                    const totalCancel = [...amountMap.values()].reduce((a,b) => a + b, 0);
+                    let warningHtml = warnings.length ? `<br><span style="color:#e74c3c;">⚠️ 投注不足提醒：<br>${warnings.join('<br>')}</span>` : '';
+                    const detail = `${orderDetails}<br><strong>合计取消：</strong>共${[...amountMap.keys()].length}个号码，总金额¥${totalCancel}${warningHtml}`;
+                    showConfirm('确认取消下注', detail, () => {
+                        for (const [idx, amt] of amountMap.entries()) {
+                            bets[idx] = Math.max(0, bets[idx] - amt);
+                        }
+                        totalR = Math.max(0, totalR - totalCancel);
+                        addLog(`取消下注: 总取消¥${totalCancel}`);
+                        recalculateAndUpdate();
+                        document.getElementById('cancelInput').value = '';
+                    });
+                };
+
+                function quickRandomBet() {
+                    let addedCount = 0, totalAdded = 0;
+                    const selected = [];
+                    for (let i = 0; i < NUM_HORSES; i++) {
+                        const amt = Math.round((Math.random() * 15) + 1);
+                        bets[i] += amt; totalAdded += amt; addedCount++; selected.push(i);
+                    }
+                    if (addedCount === 0) return;
+                    totalR += totalAdded;
+                    selectedHorses.clear();
+                    for (let i = 0; i < NUM_HORSES; i++) if (bets[i] > 0) selectedHorses.add(i);
+                    updateSelectionUI();
+                    addLog(`随机模拟下注: ${selected.map(i => getNumberDisplay(i)).join(',')}，总计¥${totalAdded}`);
+                    recalculateAndUpdate();
+                }
+
+                function resetAll() {
+                    if (totalR > 0 && !confirm('重置所有数据？')) return;
+                    bets = new Array(NUM_HORSES).fill(0); totalR = 0;
+                    selectedHorses.clear();
+                    maxLossToleranceInput.value = 0;
+                    updateSelectionUI();
+                    recalculateAndUpdate(); addLog('已重置全部数据');
+                }
+
+                function calculateGlobalOptimalDiscard(tolerance = 0) {
+                    const S = bets.map((b, i) => { const loss = multiplier * b - totalR - tolerance; return loss > 0 ? loss : 0; });
+                    if (S.every(s => s < 0.0001)) return { D:0, discards: new Array(NUM_HORSES).fill(0), newBets: [...bets], newR: totalR };
+                    let D = 0, discards = new Array(NUM_HORSES).fill(0);
+                    for (let iter = 0; iter < 200; iter++) {
+                        let nd = new Array(NUM_HORSES);
+                        for (let k = 0; k < NUM_HORSES; k++) {
+                            if (S[k] < 0.0001) nd[k] = 0;
+                            else nd[k] = Math.min(bets[k], Math.max(0, (S[k] + D) / multiplier));
+                        }
+                        const nD = nd.reduce((a,b) => a + b, 0);
+                        if (Math.abs(nD - D) < 0.0001) { discards = nd; D = nD; break; }
+                        D = nD; discards = nd;
+                    }
+                    return { D, discards, newBets: bets.map((b,i) => b - discards[i]), newR: totalR - D };
+                }
+
+                function executeGlobalDiscard() {
+                    if (!globalDiscardPlan || globalDiscardPlan.D < 0.001) return;
+                    if (!confirm(`执行建议丢弃？\n丢弃总额: ¥${globalDiscardPlan.D.toFixed(2)}`)) return;
+                    globalDiscardPlan.discards.forEach((d,i) => { if (d > 0.0001) bets[i] -= d; });
+                    totalR -= globalDiscardPlan.D;
+                    addLog(`🗑️ 执行丢弃: ¥${globalDiscardPlan.D.toFixed(2)}`);
+                    recalculateAndUpdate();
+                }
+
+                function recalculateAndUpdate() {
+                    currentTolerance = parseFloat(maxLossToleranceInput.value) || 0;
+                    const profits = bets.map(b => totalR - multiplier * b);
+                    const riskDetails = [];
+                    for (let i = 0; i < NUM_HORSES; i++) if (profits[i] < -currentTolerance - 0.001) riskDetails.push({ index:i, loss:-profits[i], bet:bets[i] });
+                    riskDetails.sort((a,b) => b.loss - a.loss);
+                    globalDiscardPlan = calculateGlobalOptimalDiscard(currentTolerance);
+                    const profitsAfter = globalDiscardPlan.newBets.map(b => globalDiscardPlan.newR - multiplier * b);
+                    updateGridDisplay(profits);
+                    updateRiskList(riskDetails);
+                    updateGlobalDiscardPanel(profitsAfter);
+                    updateSummaryCards(riskDetails);
+                }
+
+                function updateGridDisplay(profits) {
+                    for (let i = 0; i < NUM_HORSES; i++) {
+                        const cell = getCellEl(i); if (!cell) continue;
+                        cell.querySelector('.horse-bet').textContent = `¥${bets[i].toFixed(2)}`;
+                        const pe = cell.querySelector('.horse-profit');
+                        cell.classList.remove('risk-high','risk-medium','risk-safe','risk-no-bet');
+                        if (bets[i] < 0.001) { cell.classList.add('risk-no-bet'); pe.textContent='无投注'; pe.className='horse-profit profit-badge neutral'; }
+                        else if (profits[i] < -currentTolerance - 0.01) {
+                            cell.classList.add(profits[i] < -totalR*0.15 ? 'risk-high' : 'risk-medium');
+                            pe.textContent = `亏¥${Math.abs(profits[i]).toFixed(0)}`; pe.className = 'horse-profit profit-badge loss';
+                        } else { cell.classList.add('risk-safe'); pe.textContent = `盈¥${profits[i].toFixed(0)}`; pe.className = 'horse-profit profit-badge gain'; }
+                        cell.classList.toggle('selected', selectedHorses.has(i));
+                    }
+                }
+
+                function updateRiskList(riskDetails) {
+                    if (!riskDetails.length) { riskList.innerHTML = `<span style="color:#27ae60;font-size:0.72rem;">✅ 所有号码亏损≤¥${currentTolerance.toFixed(2)}</span>`; return; }
+                    riskList.innerHTML = riskDetails.map(r => `
+                        <div class="risk-item ${r.loss > totalR*0.2 ? 'severe' : ''}">
+                            <span><strong>${getNumberDisplay(r.index)}</strong></span>
+                            <span>投注¥${r.bet.toFixed(2)}</span>
+                            <span style="color:#e74c3c;">亏¥${r.loss.toFixed(2)}</span>
+                        </div>`).join('');
+                }
+
+                function updateGlobalDiscardPanel(profitsAfter) {
+                    if (!globalDiscardPlan || globalDiscardPlan.D < 0.001) {
+                        discardSummary.textContent = '✅ 当前无需丢弃';
+                        discardTable.style.display = 'none';
+                        discardAfterInfo.textContent = '';
+                        btnExecuteGlobalDiscard.disabled = true;
+                        return;
+                    }
+                    const items = globalDiscardPlan.discards.map((d,i)=>({i,d,b:bets[i]})).filter(x => x.d > 0.001).sort((a,b) => b.d - a.d);
+                    discardSummary.innerHTML = `<strong style="color:#e67e22;font-size:0.72rem;">⚠️ 建议丢弃 ¥${globalDiscardPlan.D.toFixed(2)}</strong> (${items.length}个风险编号)`;
+                    discardTableBody.innerHTML = items.map(it => `
+                        <tr class="${it.d > it.b*0.5 ? 'highlight-row' : ''}">
+                            <td><strong>${getNumberDisplay(it.i)}</strong></td>
+                            <td>¥${it.b.toFixed(2)}</td>
+                            <td style="color:#e74c3c;">¥${it.d.toFixed(2)}</td>
+                            <td>¥${(it.b - it.d).toFixed(2)}</td>
+                        </tr>`).join('');
+                    discardTable.style.display = 'table';
+                    const minProfitAfter = Math.min(...profitsAfter);
+                    discardAfterInfo.innerHTML = `丢弃后总投注: <b>¥${globalDiscardPlan.newR.toFixed(2)}</b> | 最低盈利: <b style="color:#27ae60;">¥${Math.max(0, minProfitAfter).toFixed(2)}</b>`;
+                    btnExecuteGlobalDiscard.disabled = false;
+                }
+
+                function updateSummaryCards(riskDetails) {
+                    document.getElementById('totalRDisplay').textContent = `¥${totalR.toFixed(2)}`;
+                    document.getElementById('riskCountDisplay').textContent = riskDetails.length;
+                    document.getElementById('discardTotalHeader').textContent = globalDiscardPlan ? `¥${globalDiscardPlan.D.toFixed(2)}` : '¥0.00';
+                    document.getElementById('maxLossDisplay').textContent = riskDetails.length ? `¥${riskDetails[0].loss.toFixed(2)}` : '¥0.00';
+                    const minProfit = bets.length ? Math.min(...bets.map(b => totalR - multiplier * b)) : 0;
+                    document.getElementById('minProfitDisplay').textContent = minProfit >= -currentTolerance ? `¥${Math.max(0,minProfit).toFixed(2)}` : `-¥${Math.abs(minProfit).toFixed(2)}`;
+                }
+
+                function applyTolerance() {
+                    addLog(`安全基线应用为: ≤¥${(parseFloat(maxLossToleranceInput.value)||0).toFixed(2)}`);
+                    recalculateAndUpdate();
+                }
+
+                function addLog(msg) {
+                    const t = new Date().toLocaleTimeString('zh-CN', { hour12: false });
+                    operationLog.push({ time: t, msg });
+                    if (operationLog.length > 50) operationLog.shift();
+                    logArea.innerHTML = operationLog.map(l => `<div class="log-entry"><span class="time-stamp">${l.time}</span>${l.msg}</div>`).join('');
+                    logArea.scrollTop = logArea.scrollHeight;
+                }
+
+                // 赔率应用按钮逻辑
+                window.applyMultiplier = function() {
+                    const val = parseInt(multiplierInput.value);
+                    if (isNaN(val) || val < 1) {
+                        alert('赔率必须是大于0的整数');
+                        multiplierInput.value = multiplier;
+                        return;
+                    }
+                    showConfirm('确认修改赔率', `将赔率修改为 1:${val} 并清空所有投注数据，确定吗？`, () => {
+                        multiplier = val;
+                        bets = new Array(NUM_HORSES).fill(0);
+                        totalR = 0;
+                        selectedHorses.clear();
+                        maxLossToleranceInput.value = 0;
+                        updateSelectionUI();
+                        recalculateAndUpdate();
+                        addLog(`赔率已修改为 1:${multiplier}，所有数据已清空`);
+                        // 禁用按钮10秒
+                        applyMultiplierBtn.disabled = true;
+                        let sec = 10;
+                        applyMultiplierBtn.textContent = `${sec}秒`;
+                        multiplierLockTimer = setInterval(() => {
+                            sec--;
+                            applyMultiplierBtn.textContent = `${sec}秒`;
+                            if (sec <= 0) {
+                                clearInterval(multiplierLockTimer);
+                                applyMultiplierBtn.disabled = false;
+                                applyMultiplierBtn.textContent = '应用';
+                            }
+                        }, 1000);
+                    });
+                };
+
+                document.addEventListener('keydown', function(e) {
+                    if (e.ctrlKey && e.shiftKey && e.altKey && e.code === 'KeyP') {
+                        e.preventDefault();
+                        quickRandomBet();
+                    }
+                });
+
+                window.selectAll = selectAll;
+                window.deselectAll = deselectAll;
+                window.selectByNumber = selectByNumber;
+                window.quickRandomBet = quickRandomBet;
+                window.resetAll = resetAll;
+                window.executeGlobalDiscard = executeGlobalDiscard;
+                window.applyTolerance = applyTolerance;
+
+                buildGrid();
+                updateSelectionUI();
+                recalculateAndUpdate();
+                addLog('快乐马风控系统已启动');
+            }
+        })();
+    </script>
+</body>
+</html>
